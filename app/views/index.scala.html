@@ -1,0 +1,217 @@
+@(message: String)
+
+@main("Welcome to Play with Kendo UI") {
+
+  	<div class="search-section">
+  		<span class="k-textbox k-space-right">
+            <input id="search" type="text" placeholder="Search movie" />
+            <a href="#" class="k-icon k-i-search">&nbsp;</a>
+        </span>
+        <div id="listView"></div>
+        <div id="pager" class="k-pager-wrap"></div>
+    </div>
+    
+    <script type="text/x-kendo-template" id="template">
+        <div class="movie">
+			<div class="edit-buttons">
+				<a href="\\#" class="k-button k-button-icontext seen"><span class="glyphicon glyphicon-eye-open"></span></a>
+				<a href="\\#" class="k-button k-button-icontext watchlist"><span class="glyphicon glyphicon-bookmark"></span></a>
+				<a href="\\#" class="k-button k-button-icontext collection"><span class="glyphicon glyphicon-tag"></span></a>
+			</div>
+            <img src="#: images.poster #" alt="#: title # image" />
+            <h3>#:title# (#:year#) <a href="#:url#" title="traktv"><span class="glyphicon glyphicon-film"></span></a></h3>
+            <p></p>
+
+        </div>
+    </script>
+    
+   <script>
+        $(function() {
+            var dataSource = new kendo.data.DataSource({
+            	serverFiltering: true,
+                serverPaging: true,
+                serverSorting: false,
+                transport: {
+                    read: {
+                        url: "@routes.Application.search()",
+                        dataType: "json"
+                    }
+                },
+                pageSize: 15
+            });
+            
+			$("#search").change(function() {
+			    var value = $(this).val();
+			    console.log(">" + value);
+			    if (value && value.length >= 3) {
+			        dataSource.filter({ field: "title", operator: "eq", value: value });
+			    } else {
+			        dataSource.data([]);
+			    }
+			})
+            $("#pager").kendoPager({
+            	autoBind: false,
+                dataSource: dataSource
+            });
+
+            $("#listView").kendoListView({
+            	autoBind: false,
+                dataSource: dataSource,
+                dataBound: dataBound,
+                template: kendo.template($("#template").html())
+            });
+            
+            function dataBound(event) {
+	            $("#listView .k-button.seen").on("click", function () {
+			        console.log($(this).closest("[data-uid]"));
+			        var uid = $(this).closest("[data-uid]").attr("data-uid");
+			        var item = dataSource.getByUid(uid);
+			        console.log(item);
+			        $.post("@routes.Application.seen()", {title: item.title, year: item.year, imdb_id: item.imdb_id}, function(data) {
+			        	console.log(data);
+			        });
+			    });
+            }
+        });
+    </script>
+    
+    <style scoped>
+        #listView {
+            padding: 10px 5px;
+            margin-bottom: -1px;
+            min-height: 510px;
+        }
+        .movie {
+            float: left;
+            position: relative;
+            width: 142px;
+            height: 225px;
+            margin: 0 5px;
+            padding: 0;
+        }
+        .movie img {
+            width: 110px;
+            height: 165px;
+        }
+        .movie h3 {
+            margin: 0;
+            padding: 3px 5px 0 0;
+            max-width: 96px;
+            overflow: hidden;
+            line-height: 1.1em;
+            font-size: .9em;
+            font-weight: normal;
+            text-transform: uppercase;
+            color: #999;
+        }
+        .movie p {
+            visibility: hidden;
+        }
+        .movie:hover p {
+            visibility: visible;
+            position: absolute;
+            width: 110px;
+            height: 165px;
+            top: 0;
+            margin: 0;
+            padding: 0;
+            line-height: 165px;
+            vertical-align: middle;
+            text-align: center;
+            color: #fff;
+            background-color: rgba(0,0,0,0.75);
+            transition: background .2s linear, color .2s linear;
+            -moz-transition: background .2s linear, color .2s linear;
+            -webkit-transition: background .2s linear, color .2s linear;
+            -o-transition: background .2s linear, color .2s linear;
+        }
+        .k-listview:after {
+            content: ".";
+            display: block;
+            height: 0;
+            clear: both;
+            visibility: hidden;
+        }
+        .edit-buttons
+        {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 26px;
+            height: 165px;
+            padding: 2px 2px 0 3px;
+            background-color: rgba(0,0,0,0.1);
+        }
+        .edit-buttons .k-button
+        {
+            width: 26px;
+            margin-bottom: 1px;
+        }
+    </style>
+    
+    <div id="grid"></div>
+    
+   		 	<script type="text/x-kendo-template" id="toolbar-template">
+                <div class="toolbar">
+                    <input type="search" id="category" style="width: 150px"/>
+                </div>
+            </script>
+
+    <script>
+        $(document).ready(function () {
+            var grid = $("#grid").kendoGrid({
+                dataSource: {
+                    type: "json",
+                    transport: {
+                        read: "@routes.Application.read()"
+                    },
+	                serverFiltering: true,
+                    pageSize: 20
+                },
+                toolbar: kendo.template($("#toolbar-template").html()),
+                height: 550,
+                groupable: true,
+                sortable: true,
+                pageable: {
+                    refresh: true,
+                    pageSizes: true,
+                    buttonCount: 5
+                },
+                columns: [{
+                    field: "title",
+                    title: "Title",
+                    width: 200
+                }, {
+                    field: "year",
+                    title: "Year",
+                    width: 150
+                }, {
+                    field: "genres",
+                    title: "Genres",
+                    template: "<strong>#: genres.join(', ') # </strong>"
+                }]
+            });
+            
+            grid.find("#category").kendoDropDownList({
+                dataTextField: "CategoryName",
+                dataValueField: "CategoryID",
+                autoBind: false,
+                optionLabel: "All",
+                dataSource: {
+                    data: [
+                    	{CategoryID:1, CategoryName:"Collection"}, 
+                    	{CategoryID:2, CategoryName:"Watched"},
+                    	{CategoryID:3, CategoryName:"Watchlist"}]
+                },
+                change: function() {
+                    var value = this.value();
+                    if (value) {
+                        grid.data("kendoGrid").dataSource.filter({ field: "CategoryID", operator: "eq", value: parseInt(value) });
+                    } else {
+                        grid.data("kendoGrid").dataSource.filter({});
+                    }
+                }
+            });
+        });
+    </script>
+}
