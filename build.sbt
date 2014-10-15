@@ -7,17 +7,14 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 //scalaVersion := "2.11.1"
 scalaVersion := "2.10.4"
 
-resolvers += (
-    "Local Maven Repository" at "file:///"+Path.userHome.absolutePath+"/.m2/repository"
-)
 
 libraryDependencies ++= Seq(
   jdbc,
   anorm,
   cache,
   ws, 
-  "be.spitech.trakt" % "api-client" % "0.0.1-SNAPSHOT",
   "org.webjars" % "bootstrap" % "3.2.0",
-  "org.webjars" % "jquery" % "1.11.1",
-  "org.webjars" % "kendoui" % "2014.2.903"
+  "com.squareup.retrofit" % "retrofit" % "1.6.1",
+  "org.apache.commons" % "commons-collections4" % "4.0",
+  "org.webjars" % "jquery" % "1.11.1"
 )
