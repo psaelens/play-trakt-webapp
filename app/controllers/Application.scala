@@ -2,6 +2,7 @@ package controllers
 
 import play.api._
 import play.api.mvc._
+import play.api.mvc.Security._
 import scala.reflect.io.File
 import play.api.libs.json.Json
 import retrofit.RestAdapter
@@ -17,12 +18,12 @@ import models.Movie
 import models.kendo.FilterCondition
 import scala.collection.mutable.Buffer
 
-object Application extends Controller {
+object Application extends Controller with Secure {
 
   val factory = new TraktServiceFactory("https://api.trakt.tv", "7a7dcf725280d8afcc0e508ebcc1580a")
   lazy val service = factory.create()
 
-  def index = AuthenticatedAction { request =>
+  def index = AuthenticatedAction { username => implicit request =>
     Ok(views.html.index("Your new application is ready."))
   }
 
@@ -44,22 +45,21 @@ object Application extends Controller {
       } else Unauthorized("Invalid username or password"))
   }
 
-  def AuthenticatedAction(f: Request[AnyContent] => Result): Action[AnyContent] = {
+//  def AuthenticatedAction(f: Request[AnyContent] => Result): Action[AnyContent] = {
+//
+//    Action { request =>
+//      if (authenticated(request)) {
+//        f(request)
+//      } else { Unauthorized("Oops, you are not connected") }
+//    }
+//  }
 
-    Action { request =>
-      if (authenticated(request)) {
-        f(request)
-      } else { Unauthorized("Oops, you are not connected") }
-    }
-  }
+//  def authenticated(request: Request[AnyContent]): Boolean = {
+//    request.session.get("connected").nonEmpty
+//  }
 
-  def authenticated(request: Request[AnyContent]): Boolean = {
-    request.session.get("connected").nonEmpty
-  }
+  def read(filter: Option[models.kendo.Filter]) = AuthenticatedAction { username => implicit request =>
 
-  def read(filter: Option[models.kendo.Filter]) = AuthenticatedAction { request =>
-
-    val username = request.session("connected")
     val result = filter match {
       case Some(filter) => filter.filters.map(_ match {
         case FilterCondition("CategoryID", _, "1") => service.collectionMovies(username)
@@ -72,8 +72,7 @@ object Application extends Controller {
     Ok(new GsonBuilder().create().toJson(result)).withHeaders("content-type" -> "application/json")
   }
 
-  def read = AuthenticatedAction { request =>
-    val username = request.session("connected")
+  def read = AuthenticatedAction { username => implicit request =>
     val result = request.queryString.get("filter[filters][0][value]") map { _ match {
       case Seq("1") => service.collectionMovies(username)
       case Seq("2") => service.watchedMovies(username)
@@ -96,15 +95,15 @@ object Application extends Controller {
       "year" -> number,
       "imdb_id" -> text)(Movie.apply)(Movie.unapply))
 
-  def seen = AuthenticatedAction { implicit request =>
+  def seen = AuthenticatedAction { username => implicit request =>
+    
     movieForm.bindFromRequest.fold(
       withErrors => BadRequest("Invalid movie"),
       movie => {
-        val username = request.session("connected")
         User.get(username) map { user =>
           val seen = service.seen(new MovieLibrary(Collections.singletonList(new be.spitech.trakt.api.model.Movie(movie.imdb_id, movie.title, movie.year))).withAuth(user.username, user.password))
           Ok(new GsonBuilder().create().toJson(seen))
-        } getOrElse (Ok(views.html.signin()).withNewSession)
+        } getOrElse (Unauthorized("User not found").withNewSession)
 
       })
 
